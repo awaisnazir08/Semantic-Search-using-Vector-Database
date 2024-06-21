@@ -1,0 +1,5 @@
+- [ ] Srcape the Data
+- [ ] Store the data in Milvus
+- [ ] Implement the similarity search using text and images
+- [ ] Figure out deployment/scaling of the project
+- [ ] How will it work for real time data?
