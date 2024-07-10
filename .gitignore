@@ -5,3 +5,7 @@
 /volumes
 /__pycache__
 test.jsonl
+/image_embeddings_complete
+/title_embeddings
+/image_folder
+title_embeddings/stats/0.json
