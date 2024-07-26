@@ -1,5 +1,11 @@
+
+- [x] Learn about Clip retrieval
 - [x] Collect the Data
+- [x] Generate Embeddings
+- [x] Create the Data pipeline
+- [x] Pre-process the data
 - [x] Store the data in Milvus
-- [ ] Implement the similarity search using text and images
-- [ ] Figure out deployment/scaling of the project
+- [x] Implement the similarity search using text and images
+- [ ] Create an application on Gradio
+- [x] Figure out deployment/scaling of the project
 - [ ] How will it work for real time data?
