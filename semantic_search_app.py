@@ -7,7 +7,6 @@ import json
 import torch
 import clip
 import glob
-# import pymilvus
 from pymilvus import (
     connections,
     utility,
@@ -22,7 +21,7 @@ import unicodedata
 import open_clip
 from all_clip import load_clip
 from PIL import Image
-
+import gradio as gr
 
 IMAGES_URL_DIRECTORY = 'image_folder'
 IMAGE_EMBEDDINGS_DIRECTORY = 'image_embeddings_complete'
@@ -50,19 +49,13 @@ def generate_image_embeddings(img):
         image_embeddings /= image_embeddings.norm(dim = -1, keepdim = True)
     return image_embeddings.cpu().to(torch.float32).numpy()[0]
 
-
-
 def title_similarity_search(products_collection, query_embedding, search_params):
     title_results = products_collection.search(
     data=[query_embedding], 
     anns_field="title_vector", 
-    # the sum of `offset` in `param` and `limit` 
-    # should be less than 16384.
     param=search_params,
     limit=20,
     expr=None,
-    # set the names of the fields you want to 
-    # retrieve from the search result.
     output_fields=["title", 'features', 'price', 'product_id', 'description', 'main_category', 'store', 'categories'],
     consistency_level="Strong")
     return title_results[0]
@@ -71,18 +64,16 @@ def match_title_embedding_results_with_images(title_results):
     product_ids = [result.entity.get('product_id') for result in title_results]
     query_expr = "p_id in {}".format(product_ids)
     
-    # Search for images
     image_results = images_collection.query(
     expr=query_expr,
-    output_fields=["image_url", "p_id"]  # Adjust fields based on your schema
+    output_fields=["image_url", "p_id"]
     )
     return image_results
 
 def combine_results_retrieved_by_title_similarity(title_results, image_results):
-    # Step 1: Access Product Details from title_results
     product_details = {}
-    for result in title_results:  # Adjust according to actual structure of title_results
-        product_id = result.entity.get('product_id')  # Adjust according to actual field names
+    for result in title_results:
+        product_id = result.entity.get('product_id')
         score = result.distance
         if product_id is not None:
             product_details[product_id] = {
@@ -95,7 +86,6 @@ def combine_results_retrieved_by_title_similarity(title_results, image_results):
                 'categories': result.entity.get('categories')
             }
 
-    # Step 2: Create a dictionary for image URLs
     product_images = {}
     for image in image_results:
         product_id = image.get('p_id')
@@ -106,7 +96,6 @@ def combine_results_retrieved_by_title_similarity(title_results, image_results):
         
         product_images[product_id].append(image_url)
     
-    # Step 3: Combine Product Details and Image URLs into a Single Dictionary
     combined_product_info = {}
     for product_id, details in product_details.items():
         combined_product_info[product_id] = details
@@ -117,29 +106,21 @@ def image_similarity_search(images_collection, query_embedding, search_params):
     image_results = images_collection.search(
     data=[query_embedding], 
     anns_field="image_vector", 
-    # the sum of `offset` in `param` and `limit` 
-    # should be less than 16384.
     param=search_params,
     limit=100,
     expr=None,
-    # set the names of the fields you want to 
-    # retrieve from the search result.
     output_fields=['p_id','image_url'],
     consistency_level="Strong",
-    return_score = True
+    return_score=True
     )
-    # Flatten the results
-    image_results = image_results[0]  # Access the actual result data
+    image_results = image_results[0]
     return image_results
 
 def match_image_embedding_results_with_products(image_results):
-    # Extract product_ids from the image search results
     product_ids = [result.entity.get('p_id') for result in image_results if result.entity.get('p_id')]
 
-    # Construct query expression to retrieve product information
     query_expr = "product_id in {}".format(product_ids)
 
-    # Perform the query on the products collection
     product_results = products_collection.query(
         expr=query_expr,
         output_fields=["title", "description", "price", "main_category", "store", "categories"]
@@ -147,7 +128,6 @@ def match_image_embedding_results_with_products(image_results):
     return product_results
 
 def combine_results_retrieved_by_image_similarity(product_results, image_results):
-    # Process results
     product_details = {result.get('product_id'): {
         'title': result.get('title'),
         'description': result.get('description'),
@@ -157,7 +137,6 @@ def combine_results_retrieved_by_image_similarity(product_results, image_results
         'categories': result.get('categories'),
     } for result in product_results}
     
-    # Create a dictionary to combine product details and image URLs
     combined_product_info = {}
     for image in image_results:
         product_id = image.entity.get('p_id')
@@ -173,23 +152,17 @@ def combine_results_retrieved_by_image_similarity(product_results, image_results
             combined_product_info[product_id]['scores'].append(score)
     return combined_product_info
 
-
-
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 model, preprocess, tokenizer = load_clip(clip_model='open_clip:ViT-B-16')
 
-host = "141.195.16.189"
-port = 40238 # Mapping for 19530 (default Milvus port)
+host = "192.168.1.103"
+port = 19530
 
-# Connect to Milvus
 client = connections.connect("default", host=host, port=port)
 
-# Check if the connection is established
 print("Is Milvus connected:", connections.has_connection("default"))
 
-# Optional: List collections to confirm the connection
-from pymilvus import utility
 print("Collections:", utility.list_collections())
 
 db.using_database("Products")
@@ -203,10 +176,10 @@ index_params = {
     "params": {"nlist": 256}
 }
 
-products_collection.create_index(field_name="title_vector", index_params = index_params)
+products_collection.create_index(field_name="title_vector", index_params=index_params)
 products_collection.load()
 
-images_collection.create_index(field_name="image_vector", index_params = index_params)
+images_collection.create_index(field_name="image_vector", index_params=index_params)
 images_collection.load()
 
 search_params = {
@@ -216,28 +189,59 @@ search_params = {
     "params": {"nprobe": 20}
 }
 
-# Title similarity search 
-# ---------------------------------------
-# if button clicked for search by text, user enters text, and then run this block of code and return the results
-sample_query = 'Casio Watch for Men'
-query_embedding = get_text_query_embedding(sample_query)
+def search_by_text(text):
+    query_embedding = get_text_query_embedding(text)
+    title_results = title_similarity_search(products_collection, query_embedding, search_params)
+    image_results = match_title_embedding_results_with_images(title_results)
+    results = combine_results_retrieved_by_title_similarity(title_results, image_results)
+    return results
 
-title_results = title_similarity_search(products_collection, query_embedding, search_params)
+def search_by_image(image):
+    # image = Image.open(image).convert('RGB')
+    image = Image.fromarray(image).convert('RGB')
+    query_embedding = generate_image_embeddings(image)
+    image_results = image_similarity_search(images_collection, query_embedding, search_params)
+    product_results = match_image_embedding_results_with_products(image_results)
+    results = combine_results_retrieved_by_image_similarity(product_results, image_results)
+    return results
 
-image_results = match_title_embedding_results_with_images(title_results)
+def format_results(results):
+    formatted_results = []
+    for product_id, details in results.items():
+        formatted_results.append({
+            "Title": details['title'],
+            "Description": details['description'],
+            "Price": details['price'],
+            "Main Category": details['main_category'],
+            "Store": details['store'],
+            "Categories": ", ".join(details['categories']),
+            "Images": details['image_urls']
+        })
+    return formatted_results
 
-products_by_title_similarity_search = combine_results_retrieved_by_title_similarity(title_results, image_results)
-# ---------------------------------------
+def text_search(query):
+    results = search_by_text(query)
+    return format_results(results)
 
-# Image Similarity Search 
-# ---------------------------------------
-# if user clicks on button to upload a picture, then run this block of code and return the results
-sample_image = 'sample_image.jpeg'
-image = Image.open(sample_image).convert('RGB')
-query_embedding = generate_image_embeddings(image)
+def image_search(image):
+    results = search_by_image(image)
+    return format_results(results)
 
-image_results = image_similarity_search(images_collection, query_embedding, search_params)
+text_interface = gr.Interface(
+    fn=text_search,
+    inputs=gr.components.Textbox(label="Search by Text"),
+    outputs=gr.components.JSON(label="Results")
+)
 
-product_results = match_image_embedding_results_with_products(image_results)
+image_interface = gr.Interface(
+    fn=image_search,
+    inputs=gr.components.Image(label="Search by Image"),
+    outputs=gr.components.JSON(label="Results")
+)
 
-products_by_image_similarity_search = combine_results_retrieved_by_image_similarity(product_results, image_results)
+iface = gr.TabbedInterface(
+    interface_list=[text_interface, image_interface],
+    tab_names=["Text Search", "Image Search"]
+)
+
+iface.launch()

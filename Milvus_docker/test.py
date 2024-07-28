@@ -1,7 +1,7 @@
 from pymilvus import utility
 from pymilvus import connections, MilvusClient, db, Collection
-host = "141.195.16.189"
-port = 40238 # Mapping for 19530 (default Milvus port)
+host = "192.168.1.103"
+port = 19530 # Mapping for 19530 (default Milvus port)
 
 # Connect to Milvus
 client = connections.connect("default", host=host, port=port)
