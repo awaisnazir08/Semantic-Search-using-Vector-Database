@@ -49,6 +49,8 @@ def generate_image_embeddings(img):
         image_embeddings /= image_embeddings.norm(dim = -1, keepdim = True)
     return image_embeddings.cpu().to(torch.float32).numpy()[0]
 
+
+
 def title_similarity_search(products_collection, query_embedding, search_params):
     title_results = products_collection.search(
     data=[query_embedding], 
@@ -60,8 +62,7 @@ def title_similarity_search(products_collection, query_embedding, search_params)
     consistency_level="Strong")
     return title_results[0]
 
-def match_title_embedding_results_with_images(title_results):
-    product_ids = [result.entity.get('product_id') for result in title_results]
+def match_title_embedding_results_with_images(product_ids):
     query_expr = "p_id in {}".format(product_ids)
     
     image_results = images_collection.query(
@@ -78,14 +79,14 @@ def combine_results_retrieved_by_title_similarity(title_results, image_results):
         if product_id is not None:
             product_details[product_id] = {
                 'title': result.entity.get('title'),
-                'score':score,
+                'scores':score,
                 'description': result.entity.get('description'),
                 'price': result.entity.get('price'),
                 'main_category': result.entity.get('main_category'),
                 'store': result.entity.get('store'),
                 'categories': result.entity.get('categories')
             }
-
+    
     product_images = {}
     for image in image_results:
         product_id = image.get('p_id')
@@ -102,6 +103,9 @@ def combine_results_retrieved_by_title_similarity(title_results, image_results):
         combined_product_info[product_id]['image_urls'] = product_images.get(product_id, [])
     return combined_product_info
 
+
+
+
 def image_similarity_search(images_collection, query_embedding, search_params):
     image_results = images_collection.search(
     data=[query_embedding], 
@@ -113,21 +117,26 @@ def image_similarity_search(images_collection, query_embedding, search_params):
     consistency_level="Strong",
     return_score=True
     )
-    image_results = image_results[0]
-    return image_results
+    return image_results[0]
 
-def match_image_embedding_results_with_products(image_results):
-    product_ids = [result.entity.get('p_id') for result in image_results if result.entity.get('p_id')]
-
+def match_image_embedding_results_with_products(product_ids):    
     query_expr = "product_id in {}".format(product_ids)
-
+    
     product_results = products_collection.query(
         expr=query_expr,
         output_fields=["title", "description", "price", "main_category", "store", "categories"]
     )
     return product_results
 
-def combine_results_retrieved_by_image_similarity(product_results, image_results):
+def get_all_images(product_ids):
+    image_query_expr = "p_id in {}".format(product_ids)
+    all_images_of_matched_products = images_collection.query(
+        expr=image_query_expr,
+        output_fields=['image_id', 'image_url', 'p_id']
+    )
+    return all_images_of_matched_products
+
+def combine_results_retrieved_by_image_similarity(product_results, image_results, all_images_of_matched_products):
     product_details = {result.get('product_id'): {
         'title': result.get('title'),
         'description': result.get('description'),
@@ -150,13 +159,25 @@ def combine_results_retrieved_by_image_similarity(product_results, image_results
                 combined_product_info[product_id]['scores'] = []
             combined_product_info[product_id]['image_urls'].append(image_url)
             combined_product_info[product_id]['scores'].append(score)
+    
+    for remaining_image in all_images_of_matched_products:
+        if remaining_image['image_url'] not in combined_product_info[remaining_image['p_id']]['image_urls']:
+            combined_product_info[remaining_image['p_id']]['image_urls'].append(remaining_image['image_url'])
+            combined_product_info[remaining_image['p_id']]['scores'].append(0)
     return combined_product_info
+
+def get_product_ids(results):
+    return [result.entity.get('p_id') for result in results if result.entity.get('p_id')]
+
+def process_user_image(image):
+    # image = Image.open(image).convert('RGB')
+    return Image.fromarray(image).convert('RGB')
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 model, preprocess, tokenizer = load_clip(clip_model='open_clip:ViT-B-16')
 
-host = "192.168.1.103"
+host = "192.168.1.101"
 port = 19530
 
 client = connections.connect("default", host=host, port=port)
@@ -192,17 +213,19 @@ search_params = {
 def search_by_text(text):
     query_embedding = get_text_query_embedding(text)
     title_results = title_similarity_search(products_collection, query_embedding, search_params)
-    image_results = match_title_embedding_results_with_images(title_results)
+    product_ids = get_product_ids(title_results)
+    image_results = match_title_embedding_results_with_images(product_ids)
     results = combine_results_retrieved_by_title_similarity(title_results, image_results)
     return results
 
 def search_by_image(image):
-    # image = Image.open(image).convert('RGB')
-    image = Image.fromarray(image).convert('RGB')
+    image = process_user_image(image)
     query_embedding = generate_image_embeddings(image)
     image_results = image_similarity_search(images_collection, query_embedding, search_params)
-    product_results = match_image_embedding_results_with_products(image_results)
-    results = combine_results_retrieved_by_image_similarity(product_results, image_results)
+    product_ids = get_product_ids(image_results)
+    product_results = match_image_embedding_results_with_products(product_ids)
+    all_images_of_matched_products = get_all_images(product_ids)
+    results = combine_results_retrieved_by_image_similarity(product_results, image_results, all_images_of_matched_products)
     return results
 
 def format_results(results):
@@ -215,7 +238,8 @@ def format_results(results):
             "Main Category": details['main_category'],
             "Store": details['store'],
             "Categories": ", ".join(details['categories']),
-            "Images": details['image_urls']
+            "Images": details['image_urls'],
+            'Score': details['scores']
         })
     return formatted_results
 
