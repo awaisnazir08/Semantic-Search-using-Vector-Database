@@ -166,12 +166,46 @@ def combine_results_retrieved_by_image_similarity(product_results, image_results
             combined_product_info[remaining_image['p_id']]['scores'].append(0)
     return combined_product_info
 
-def get_product_ids(results):
-    return [result.entity.get('p_id') for result in results if result.entity.get('p_id')]
+def get_product_ids(product_results = None, image_results = None):
+    if image_results:
+        return [result.entity.get('p_id') for result in image_results if result.entity.get('p_id')]
+    elif product_results:
+        return [result.entity.get('product_id') for result in product_results if result.entity.get('product_id')]
 
 def process_user_image(image):
     # image = Image.open(image).convert('RGB')
     return Image.fromarray(image).convert('RGB')
+
+def calculate_score(text_score, image_score):
+    text_weight = 0.6
+    image_weight = 0.4
+    return (text_score * text_weight) + (image_score * image_weight)
+
+def sort_weighted_products(all_products):
+    sorted_products = dict(sorted(all_products.items(), key=lambda item: item[1]['final_rank_score'], reverse=True))
+    return sorted_products
+
+def weighted_products(text_results, image_results):
+    all_products = {}
+    products_by_both_similarity = set()
+    for id, product in text_results.items():
+        if id in image_results:
+            products_by_both_similarity.add(id)
+            max_im_score = max(image_results[id]['scores'])
+            score = calculate_score(product['scores'], max_im_score)
+            all_products[id] = product
+            all_products[id]['final_rank_score'] = score
+        else:
+            score = calculate_score(product['scores'], 0)
+            all_products[id] = product
+            all_products[id]['final_rank_score'] = score
+    
+    for id, product in image_results.items():
+        if id not in products_by_both_similarity:
+            score = calculate_score(0, max(product['scores']))
+            all_products[id] = product
+            all_products[id]['final_rank_score'] = score
+    return all_products
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -213,7 +247,7 @@ search_params = {
 def search_by_text(text):
     query_embedding = get_text_query_embedding(text)
     title_results = title_similarity_search(products_collection, query_embedding, search_params)
-    product_ids = get_product_ids(title_results)
+    product_ids = get_product_ids(product_results=title_results)
     image_results = match_title_embedding_results_with_images(product_ids)
     results = combine_results_retrieved_by_title_similarity(title_results, image_results)
     return results
@@ -222,16 +256,37 @@ def search_by_image(image):
     image = process_user_image(image)
     query_embedding = generate_image_embeddings(image)
     image_results = image_similarity_search(images_collection, query_embedding, search_params)
-    product_ids = get_product_ids(image_results)
+    product_ids = get_product_ids(image_results=image_results)
     product_results = match_image_embedding_results_with_products(product_ids)
     all_images_of_matched_products = get_all_images(product_ids)
     results = combine_results_retrieved_by_image_similarity(product_results, image_results, all_images_of_matched_products)
     return results
 
+def weighted_search(text, image):
+    if text and text !='':
+        query_embedding = get_text_query_embedding(text)
+    elif image is not None:
+        image = process_user_image(image)
+        query_embedding = generate_image_embeddings(image)
+    
+    title_results = title_similarity_search(products_collection, query_embedding, search_params)
+    product_ids = get_product_ids(product_results=title_results)
+    image_results = match_title_embedding_results_with_images(product_ids)
+    text_results = combine_results_retrieved_by_title_similarity(title_results, image_results)
+    
+    image_results = image_similarity_search(images_collection, query_embedding, search_params)
+    product_ids = get_product_ids(image_results=image_results)
+    product_results = match_image_embedding_results_with_products(product_ids)
+    all_images_of_matched_products = get_all_images(product_ids)
+    im_results = combine_results_retrieved_by_image_similarity(product_results, image_results, all_images_of_matched_products)
+    all_products = weighted_products(text_results, im_results)
+    all_products = sort_weighted_products(all_products)
+    return all_products
+
 def format_results(results):
     formatted_results = []
     for product_id, details in results.items():
-        formatted_results.append({
+        formatted_result = {
             "Title": details['title'],
             "Description": details['description'],
             "Price": details['price'],
@@ -239,9 +294,15 @@ def format_results(results):
             "Store": details['store'],
             "Categories": ", ".join(details['categories']),
             "Images": details['image_urls'],
-            'Score': details['scores']
-        })
+            "Score": details['scores']
+        }
+        if 'final_rank_score' in details:
+            formatted_result['Final Rank Score'] = details['final_rank_score']
+        
+        formatted_results.append(formatted_result)
+        
     return formatted_results
+
 
 def text_search(query):
     results = search_by_text(query)
@@ -249,6 +310,12 @@ def text_search(query):
 
 def image_search(image):
     results = search_by_image(image)
+    return format_results(results)
+
+def text_image_search(text = None, image = None):
+    # print(f'text: {text}')
+    # print(f'image: {image}')
+    results = weighted_search(text, image)
     return format_results(results)
 
 text_interface = gr.Interface(
@@ -263,9 +330,19 @@ image_interface = gr.Interface(
     outputs=gr.components.JSON(label="Results")
 )
 
+text_image_interface = gr.Interface(
+    fn = text_image_search,
+    inputs=[
+        gr.components.Textbox(label='Search by Text'),
+        gr.components.Image(label='Search by Image')
+    ],
+    # inputs=gr.components.Textbox(label="Search by Text"),
+    outputs = gr.components.JSON(label = 'Results')
+)
+
 iface = gr.TabbedInterface(
-    interface_list=[text_interface, image_interface],
-    tab_names=["Text Search", "Image Search"]
+    interface_list=[text_interface, image_interface, text_image_interface],
+    tab_names=["Text Search", "Image Search", 'Combined_weighted_search']
 )
 
 iface.launch()

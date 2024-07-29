@@ -15,3 +15,6 @@ text/test.txt
 Milvus_docker/Milvus docker run files/milvus template screenshot.png
 Milvus_docker/Milvus docker run files/milvus commands to run.txt
 sample_image.jpeg
+yellow.jpeg
+.gitignore
+download.jpeg
