@@ -56,7 +56,7 @@ def title_similarity_search(products_collection, query_embedding, search_params)
     data=[query_embedding], 
     anns_field="title_vector", 
     param=search_params,
-    limit=20,
+    limit=30,
     expr=None,
     output_fields=["title", 'features', 'price', 'product_id', 'description', 'main_category', 'store', 'categories'],
     consistency_level="Strong")
@@ -177,8 +177,8 @@ def process_user_image(image):
     return Image.fromarray(image).convert('RGB')
 
 def calculate_score(text_score, image_score):
-    text_weight = 0.6
-    image_weight = 0.4
+    text_weight = 0.5
+    image_weight = 0.5
     return (text_score * text_weight) + (image_score * image_weight)
 
 def sort_weighted_products(all_products):
@@ -211,7 +211,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 model, preprocess, tokenizer = load_clip(clip_model='open_clip:ViT-B-16')
 
-host = "192.168.1.101"
+host = "192.168.1.103"
 port = 19530
 
 client = connections.connect("default", host=host, port=port)
@@ -230,6 +230,18 @@ index_params = {
     "index_type": "IVF_FLAT",
     "params": {"nlist": 256}
 }
+
+# index_params = {
+#     "index_type": "HNSW",
+#     "metric_type": "COSINE",  # or "IP" for Inner Product
+#     "params": {"M": 64, "efConstruction": 300}
+# }
+
+# products_collection.release()
+# products_collection.drop_index()
+
+# images_collection.release()
+# images_collection.drop_index()
 
 products_collection.create_index(field_name="title_vector", index_params=index_params)
 products_collection.load()
