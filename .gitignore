@@ -21,3 +21,10 @@ download.jpeg
 head band.jpg
 semantic_search_app (copy).py
 App/flagged
+App/combine_results/__pycache__
+App/embeddings/__pycache__
+App/interface/__pycache__
+App/milvus_db/__pycache__
+App/model/__pycache__
+App/search/__pycache__
+App/utils/__pycache__
