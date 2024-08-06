@@ -1,4 +1,4 @@
-from utils.helper_utils import calculate_score
+from ..utils.helper_utils import calculate_score
 
 def combine_weighted_products(text_results, image_results):
     all_products = {}
@@ -35,7 +35,9 @@ def combine_results_retrieved_by_title_similarity(title_results, image_results):
                 'price': result.entity.get('price'),
                 'main_category': result.entity.get('main_category'),
                 'store': result.entity.get('store'),
-                'categories': result.entity.get('categories')
+                'categories': result.entity.get('categories'),
+                'features': result.entity.get('features'),
+                'average_rating': result.entity.get('average_rating')
             }
     
     product_images = {}
@@ -63,6 +65,8 @@ def combine_results_retrieved_by_image_similarity(product_results, image_results
         'main_category': result.get('main_category'),
         'store': result.get('store'),
         'categories': result.get('categories'),
+        'features': result.get('features'),
+        'average_rating': result.get('average_rating')
     } for result in product_results}
     
     combined_product_info = {}

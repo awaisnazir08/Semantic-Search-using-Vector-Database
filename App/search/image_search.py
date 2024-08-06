@@ -17,7 +17,7 @@ def match_image_embedding_results_with_products(products_collection, product_ids
     
     product_results = products_collection.query(
         expr=query_expr,
-        output_fields=["title", "description", "price", "main_category", "store", "categories"]
+        output_fields=["title", "description", "price", "main_category", "store", "categories", 'features', 'average_rating']
     )
     return product_results
 
@@ -29,3 +29,18 @@ def get_all_images(images_collection, product_ids):
         output_fields=['image_id', 'image_url', 'p_id']
     )
     return all_images_of_matched_products
+
+# def match_image_embedding_results_with_products(products_collection, product_ids, filters=None):
+#     product_ids_expr = "product_id in [{}]".format(", ".join(map(str, product_ids)))
+    
+#     if filters:
+#         filters_expr = build_expression(filters)
+#         query_expr = f"{product_ids_expr} and {filters_expr}"
+#     else:
+#         query_expr = product_ids_expr
+    
+#     product_results = products_collection.query(
+#         expr=query_expr,
+#         output_fields=["title", "description", "price", "main_category", "store", "categories", 'features', 'average_rating']
+#     )
+#     return product_results

@@ -28,3 +28,4 @@ App/milvus_db/__pycache__
 App/model/__pycache__
 App/search/__pycache__
 App/utils/__pycache__
+App/__pycache__/semantic_search_app.cpython-311.pyc

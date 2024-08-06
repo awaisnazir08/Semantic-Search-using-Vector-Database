@@ -1,13 +1,13 @@
 import gradio as gr
-from search import title_similarity_search, match_title_embedding_results_with_images, image_similarity_search, match_image_embedding_results_with_products, get_all_images
-from combine_results import combine_weighted_products
-from combine_results import combine_results_retrieved_by_title_similarity, combine_results_retrieved_by_image_similarity
-from utils import process_user_image, get_product_ids, sort_weighted_products
-from embeddings import get_text_query_embedding
-from embeddings import generate_image_embeddings
+from ..search.text_search import title_similarity_search, match_title_embedding_results_with_images
+from ..search.image_search import get_all_images, match_image_embedding_results_with_products, image_similarity_search
+from ..combine_results.combine import combine_weighted_products, combine_results_retrieved_by_image_similarity, combine_results_retrieved_by_title_similarity
+from ..utils.helper_utils import process_user_image, get_product_ids, sort_weighted_products
+from ..embeddings.text_embedding import get_text_query_embedding
+from ..embeddings.image_embedding import generate_image_embeddings
 import torch
 from all_clip import load_clip
-from model import get_model
+from ..model.load_model import get_model
 
 def format_results(results):
     formatted_results = []
@@ -15,7 +15,9 @@ def format_results(results):
         formatted_result = {
             "Title": details['title'],
             "Description": details['description'],
+            'Features': details['features'],
             "Price": details['price'],
+            'Average Rating': details['average_rating'],
             "Main Category": details['main_category'],
             "Store": details['store'],
             "Categories": ", ".join(details['categories']),

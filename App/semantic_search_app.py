@@ -1,6 +1,6 @@
-from milvus_db import connect_milvus
-from milvus_db import setup_collections
-from interface import launch_interface
+from .milvus_db.connection import connect_milvus
+from .milvus_db.setup import setup_collections
+from .interface.ui import launch_interface
 import torch
 from pymilvus import (
     connections,
@@ -17,7 +17,7 @@ from pymilvus import (
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def main():
-    host = "192.168.1.103"
+    host = "10.7.56.51"
     port = 19530
     
     # Connect to Milvus
