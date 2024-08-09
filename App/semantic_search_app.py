@@ -17,7 +17,7 @@ from pymilvus import (
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def main():
-    host = "10.7.56.51"
+    host = "192.168.1.103"
     port = 19530
     
     # Connect to Milvus

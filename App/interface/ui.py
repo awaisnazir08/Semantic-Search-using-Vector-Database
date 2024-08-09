@@ -1,6 +1,6 @@
 import gradio as gr
 from ..search.text_search import title_similarity_search, match_title_embedding_results_with_images
-from ..search.image_search import get_all_images, match_image_embedding_results_with_products, image_similarity_search
+from ..search.image_search import get_all_images, match_image_embedding_results_with_products, image_similarity_search, get_filtered_product_ids
 from ..combine_results.combine import combine_weighted_products, combine_results_retrieved_by_image_similarity, combine_results_retrieved_by_title_similarity
 from ..utils.helper_utils import process_user_image, get_product_ids, sort_weighted_products
 from ..embeddings.text_embedding import get_text_query_embedding
@@ -40,7 +40,9 @@ def search_by_text(text, products_collection, images_collection, search_params, 
 def search_by_image(image, products_collection, images_collection, search_params, model, preprocess, device):
     image = process_user_image(image)
     query_embedding = generate_image_embeddings(image, model, preprocess, device)
-    image_results = image_similarity_search(images_collection, query_embedding, search_params)
+    filtered_product_ids = get_filtered_product_ids(products_collection)
+    filtered_product_ids = get_product_ids(filtered_products=filtered_product_ids)
+    image_results = image_similarity_search(images_collection, query_embedding, search_params, product_ids=filtered_product_ids)
     product_ids = get_product_ids(image_results=image_results)
     product_results = match_image_embedding_results_with_products(products_collection, product_ids)
     all_images_of_matched_products = get_all_images(images_collection, product_ids)
@@ -59,11 +61,14 @@ def weighted_search(products_collection, images_collection, search_params, model
     image_results = match_title_embedding_results_with_images(images_collection, product_ids)
     text_results = combine_results_retrieved_by_title_similarity(title_results, image_results)
     
-    image_results = image_similarity_search(images_collection, query_embedding, search_params)
+    filtered_product_ids = get_filtered_product_ids(products_collection)
+    filtered_product_ids = get_product_ids(filtered_products=filtered_product_ids)
+    image_results = image_similarity_search(images_collection, query_embedding, search_params, product_ids=filtered_product_ids)
     product_ids = get_product_ids(image_results=image_results)
     product_results = match_image_embedding_results_with_products(products_collection, product_ids)
     all_images_of_matched_products = get_all_images(images_collection, product_ids)
     im_results = combine_results_retrieved_by_image_similarity(product_results, image_results, all_images_of_matched_products)
+    
     all_products = combine_weighted_products(text_results, im_results)
     all_products = sort_weighted_products(all_products)
     return format_results(all_products)

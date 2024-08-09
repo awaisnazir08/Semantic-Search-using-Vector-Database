@@ -1,3 +1,4 @@
+from ..utils.helper_utils import build_expression
 # def title_similarity_search(products_collection, query_embedding, search_params):
 #     title_results = products_collection.search(
 #         data=[query_embedding], 
@@ -19,23 +20,6 @@ def match_title_embedding_results_with_images(images_collection, product_ids):
     )
     return image_results
 
-def build_expression(filters):
-    expressions = []
-    for field, condition in filters.items():
-        operator = condition.get("operator", "==")
-        value = condition.get("value")
-        
-        if operator not in ["==", "!=", "<", "<=", ">", ">=", "in"]:
-            raise ValueError(f"Unsupported operator: {operator}")
-        
-        if operator == "in" and isinstance(value, list):
-            value_list = ', '.join([f'"{v}"' if isinstance(v, str) else str(v) for v in value])
-            expressions.append(f'{field} in [{value_list}]')
-        else:
-            if isinstance(value, str):
-                value = f'"{value}"'
-            expressions.append(f'{field} {operator} {value}')
-    return " and ".join(expressions) if expressions else None
 
 def title_similarity_search(products_collection, query_embedding, search_params, filters=None):
     filters = {
