@@ -1,6 +1,6 @@
-from .milvus_db.connection import connect_milvus
-from .milvus_db.setup import setup_collections
-from .interface.ui import launch_interface
+from .milvus_db.setup import MilvusManager
+from .model.get_model import Model
+from .interface.ui import Interface
 import torch
 from pymilvus import (
     connections,
@@ -13,21 +13,20 @@ from pymilvus import (
     MilvusClient
 )
 
-# Constants
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
 def main():
-    host = "192.168.1.103"
-    port = 19530
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
-    # Connect to Milvus
-    client = connect_milvus(host, port)
+    milvus = MilvusManager()
+    embeddings_generation_model = Model()
     
-    # Setup collections
-    products_collection, images_collection, search_params = setup_collections(client)
+    milvus.connect()
+    products_collection, images_collection, search_params = milvus.setup_collections()
     
-    # Launch interface
-    launch_interface(products_collection, images_collection, search_params, device)
+    model, preprocess, tokenizer = embeddings_generation_model.load_model()
+    
+    interface = Interface(products_collection, images_collection, search_params, model, preprocess, tokenizer, device)
+    
+    interface.launch_interface()
 
 if __name__ == "__main__":
     main()

@@ -1,3 +1,4 @@
 # from .combined_search import 
-from .image_search import image_similarity_search, match_image_embedding_results_with_products, get_all_images
-from .text_search import title_similarity_search, match_title_embedding_results_with_images
+from .handle_searches import HandleSearch
+from .image_search import ImageSimilaritySearch
+from .text_search import TextSimilaritySearch
