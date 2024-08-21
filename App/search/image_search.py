@@ -21,7 +21,6 @@ class ImageSimilaritySearch:
         )
         return image_results[0]
 
-
     def get_all_images(self, product_ids):
         image_query_expr = "p_id in {}".format(product_ids)
         all_images_of_matched_products = self.images_collection.query(
@@ -40,17 +39,11 @@ class ImageSimilaritySearch:
         return product_results
 
     def get_filtered_product_ids(self, filters = None):
-        # filters = {
-        # 'price': {'operator': '>=', 'value': 3},
-        # # 'store': {'operator': '==', 'value': 'Best Buy'},
-        # 'average_rating': {'operator': '>', 'value': 3}
-        # }
         if filters: 
             query_expr = build_expression(filters)
             product_id_results = self.products_collection.query(
             expr=query_expr,
-            output_fields=['product_id']
-        )
+            output_fields=['product_id'])
         else:
             return None
         return product_id_results
