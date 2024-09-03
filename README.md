@@ -1,6 +1,10 @@
 # Milvus-Based Gradio Application
 
-This is a Gradio application that leverages Milvus for semantic search. The embeddings have been generated using [Clip-retrieval](https://github.com/rom1504/clip-retrieval). The app requires a Milvus database with specific collections and uses a Python module for query embeddings generation. Below are the instructions to get the application up and running.
+This is a Gradio application that leverages Milvus for semantic search. The embeddings have been generated using [Clip-retrieval](https://github.com/rom1504/clip-retrieval). The model used for generation of embeddings is [Open Clip](https://github.com/mlfoundations/open_clip) The app requires a Milvus database with specific collections and uses a Python module for query embeddings generation. Below are the instructions to get the application up and running.
+
+## Demo Images
+![Search by Text](Demo_images/search_by_text.png)
+![Search by Image](Demo_images/search_by_image.png)
 
 ## Prerequisites
 
@@ -28,9 +32,9 @@ This is a Gradio application that leverages Milvus for semantic search. The embe
 
 You need to have Docker installed on your local machine. To run Milvus in a Docker container, execute the following command:
 
-    ```bash
+```bash
     docker compose -f milvus-standalone-docker-compose.yml up -d
-    ```
+```
 Ensure that Milvus is running on port `19530`. You may need to specify this port and the `IP` of your device in the `semantic_search_app.py` file.
 
 ## Database Setup

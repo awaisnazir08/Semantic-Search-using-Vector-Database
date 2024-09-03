@@ -31,3 +31,5 @@ App/utils/__pycache__
 App/__pycache__/semantic_search_app.cpython-311.pyc
 volumes.zip
 App/__pycache__/semantic_search_app.cpython-312.pyc
+test.ipynb
+.gitignore
